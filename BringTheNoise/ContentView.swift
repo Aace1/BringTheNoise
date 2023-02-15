@@ -13,12 +13,13 @@ struct ContentView: View {
     @State private var audioPlayer: AVAudioPlayer!
     @State private var animateImage = true
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var noiseImage = Image("speaker01")
     
     var body: some View {
         VStack {
             Spacer()
             
-            Image("speaker01")
+            noiseImage
                 .resizable()
                 .scaledToFit()
                 .scaleEffect(animateImage ? 1.0 : 0.9)
@@ -29,19 +30,34 @@ struct ContentView: View {
                         animateImage = true // will go from 90% size to 100% size but using the .spring animation
                     }
                 }
-                
+            Spacer()
             Spacer()
             
-            
-            Button {
-                //TODO: Button action here
-            } label: {
+            PhotosPicker(selection: $selectedPhoto, matching: .images, preferredItemEncoding: .automatic) {
                 Label("Photo Library", systemImage: "photo.fill.on.rectangle.fill")
             }
-            
+            .onChange(of: selectedPhoto) { newValue in
+                // We need to:
+                // - get the data inside the PhotosPickerItem selectedPhoto
+                // - use the data to create a UIImage
+                // - use the UIImage to create an Image
+                // - and assign that image to noiseImage
+                Task {
+                    do {
+                        if let data = try await newValue?.loadTransferable(type: Data.self) {
+                            if let uiImage = UIImage(data: data) {
+                                noiseImage = Image(uiImage: uiImage)
+                            }
+                        }
+                    } catch {
+                        print("😡 ERROR: loading failed \(error.localizedDescription)")
+                    }
+                }
+            }
         }
         .padding()
     }
+    
     func playSound(soundName: String) {
         guard let soundFile = NSDataAsset(name: soundName) else {
             print("😡 Could not read file named \(soundName)")
